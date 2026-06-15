@@ -190,8 +190,9 @@ body{height:100vh;background:#050505;color:white;overflow:hidden}
 const BASE_DB = "https://draft-ac851-default-rtdb.firebaseio.com";
 
 let students = [];
-let lastCommandId = 0;
+let lastCommandId = null;
 let isRevealing = false;
+let lastClassName = null;
 
 function getStars(n){
   n = Number(n) || 0;
@@ -199,7 +200,7 @@ function getStars(n){
 }
 
 async function fetchJSON(path){
-  const res = await fetch(`${BASE_DB}${path}.json`);
+  const res = await fetch(`${BASE_DB}${path}.json?cacheBust=${Date.now()}`);
   return await res.json();
 }
 
@@ -261,9 +262,11 @@ async function revealNext(state){
   if(isRevealing) return;
   isRevealing = true;
 
-  const index = state.revealedCount;
+  const index = Number(state.revealedCount) || 0;
 
   if(index >= students.length){
+    state.action = "board";
+    await saveDraftState(state);
     isRevealing = false;
     drawBoard(state);
     return;
@@ -289,13 +292,15 @@ async function revealNext(state){
   card.classList.add("revealAnim");
 
   setTimeout(async ()=>{
-    state.revealedCount++;
-    state.action = "board";
+    const newestState = await fetchJSON("/draft");
 
-    await saveDraftState(state);
+    newestState.revealedCount = index + 1;
+    newestState.action = "board";
+
+    await saveDraftState(newestState);
 
     overlay.style.display = "none";
-    drawBoard(state);
+    drawBoard(newestState);
 
     isRevealing = false;
   }, 3200);
@@ -309,18 +314,29 @@ async function update(){
     commandId:0
   };
 
+  if(state.className !== lastClassName){
+    lastClassName = state.className;
+    lastCommandId = state.commandId;
+    await loadStudents(state.className);
+    drawBoard(state);
+    return;
+  }
+
   await loadStudents(state.className);
 
-  if(state.action === "next" && state.commandId !== lastCommandId){
+  if(state.action === "next" && state.commandId !== lastCommandId && !isRevealing){
     lastCommandId = state.commandId;
     await revealNext(state);
-  }else if(!isRevealing){
+    return;
+  }
+
+  if(!isRevealing && state.action === "board"){
     document.getElementById("revealOverlay").style.display = "none";
     drawBoard(state);
   }
 }
 
-setInterval(update, 800);
+setInterval(update, 700);
 update();
 </script>
 
