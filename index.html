@@ -223,7 +223,7 @@ async function loadStudents(className){
 
   students = students
   .filter(s => s && s.name)
-  .sort((a,b) => (Number(b.stars) || 0) - (Number(a.stars) || 0));
+  .sort((a,b) => (Number(a.stars) || 0) - (Number(b.stars) || 0));
 }
 
 function drawBoard(state){
@@ -243,7 +243,20 @@ function drawBoard(state){
   }
 
   students.forEach((s,i)=>{
-    const revealed = i < state.revealedCount;
+  const revealed = i < state.revealedCount;
+  const rankNumber = students.length - i;
+
+  board.innerHTML += `
+    <div class="player ${revealed ? "" : "locked"}">
+      <div class="rankNum">#${rankNumber}</div>
+      <div class="miniPhoto">
+        ${revealed ? (s.photo ? `<img src="${s.photo}">` : "📷") : "?"}
+      </div>
+      <div class="miniName">${revealed ? s.name : "Unrevealed"}</div>
+      <div class="miniStars">${revealed ? getStars(s.stars) : "☆☆☆☆☆"}</div>
+    </div>
+  `;
+});
 
     board.innerHTML += `
       <div class="player ${revealed ? "" : "locked"}">
@@ -272,7 +285,7 @@ async function revealNext(state){
     return;
   }
 
-  const revealIndex = students.length - 1 - index;
+  const revealIndex = index;
 const s = students[revealIndex];
 
   document.getElementById("name").textContent = s.name;
