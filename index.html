@@ -222,8 +222,8 @@ async function loadStudents(className){
   students = Array.isArray(data) ? data : Object.values(data);
 
   students = students
-    .filter(s => s && s.name)
-    .sort((a,b) => (Number(a.stars) || 0) - (Number(b.stars) || 0));
+  .filter(s => s && s.name)
+  .sort((a,b) => (Number(b.stars) || 0) - (Number(a.stars) || 0));
 }
 
 function drawBoard(state){
@@ -272,12 +272,13 @@ async function revealNext(state){
     return;
   }
 
-  const s = students[index];
+  const revealIndex = students.length - 1 - index;
+const s = students[revealIndex];
 
   document.getElementById("name").textContent = s.name;
   document.getElementById("className").textContent = state.className;
   document.getElementById("stars").textContent = getStars(s.stars);
-  document.getElementById("rank").textContent = "Rank #" + (index + 1);
+  document.getElementById("rank").textContent = "Rank #" + (revealIndex + 1);
 
   document.getElementById("photo").innerHTML =
     s.photo ? `<img src="${s.photo}">` : "📷";
