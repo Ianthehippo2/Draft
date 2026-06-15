@@ -195,7 +195,7 @@ let isRevealing = false;
 let lastClassName = null;
 
 function getStars(n){
-  n = Number(n) || 0;
+  n = Number(n) || 1;
   return "⭐".repeat(n) + "☆".repeat(5 - n);
 }
 
@@ -221,9 +221,10 @@ async function loadStudents(className){
 
   students = Array.isArray(data) ? data : Object.values(data);
 
+  // WORST TO BEST ORDER
   students = students
-  .filter(s => s && s.name)
-  .sort((a,b) => (Number(a.stars) || 0) - (Number(b.stars) || 0));
+    .filter(s => s && s.name)
+    .sort((a,b) => (Number(a.stars) || 1) - (Number(b.stars) || 1));
 }
 
 function drawBoard(state){
@@ -243,24 +244,12 @@ function drawBoard(state){
   }
 
   students.forEach((s,i)=>{
-  const revealed = i < state.revealedCount;
-  const rankNumber = students.length - i;
-
-  board.innerHTML += `
-    <div class="player ${revealed ? "" : "locked"}">
-      <div class="rankNum">#${rankNumber}</div>
-      <div class="miniPhoto">
-        ${revealed ? (s.photo ? `<img src="${s.photo}">` : "📷") : "?"}
-      </div>
-      <div class="miniName">${revealed ? s.name : "Unrevealed"}</div>
-      <div class="miniStars">${revealed ? getStars(s.stars) : "☆☆☆☆☆"}</div>
-    </div>
-  `;
-});
+    const revealed = i < state.revealedCount;
+    const rankNumber = students.length - i;
 
     board.innerHTML += `
       <div class="player ${revealed ? "" : "locked"}">
-        <div class="rankNum">#${i + 1}</div>
+        <div class="rankNum">#${rankNumber}</div>
         <div class="miniPhoto">
           ${revealed ? (s.photo ? `<img src="${s.photo}">` : "📷") : "?"}
         </div>
@@ -285,13 +274,15 @@ async function revealNext(state){
     return;
   }
 
+  // REVEAL WORST FIRST BECAUSE ARRAY IS WORST TO BEST
   const revealIndex = index;
-const s = students[revealIndex];
+  const s = students[revealIndex];
+  const rankNumber = students.length - revealIndex;
 
   document.getElementById("name").textContent = s.name;
   document.getElementById("className").textContent = state.className;
   document.getElementById("stars").textContent = getStars(s.stars);
-  document.getElementById("rank").textContent = "Rank #" + (revealIndex + 1);
+  document.getElementById("rank").textContent = "Rank #" + rankNumber;
 
   document.getElementById("photo").innerHTML =
     s.photo ? `<img src="${s.photo}">` : "📷";
