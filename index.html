@@ -1,1 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Schooled Draft Display</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+body{height:100vh;background:#050505;color:white;overflow:hidden}
+.logo{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:24px;font-weight:bold;letter-spacing:4px;z-index:10}
+.board{width:100vw;height:100vh;padding:55px 12px 12px;display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(5,1fr);gap:7px}
+.player{background:#181818;border:1px solid #444;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
+.player.locked{filter:blur(3px);opacity:.45}
+.rankNum{font-size:11px;color:#999;margin-bottom:3px}
+.miniPhoto{width:42px;height:42px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;margin-bottom:4px;overflow:hidden;font-size:18px}
+.miniPhoto img{width:100%;height:100%;object-fit:cover}
+.miniName{font-size:11px;font-weight:bold;max-width:90%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.miniStars{font-size:9px;color:gold;margin-top:2px}
+.revealOverlay{position:fixed;inset:0;background:radial-gradient(circle,#333 0%,#111 45%,#000 100%);display:none;align-items:center;justify-content:center;z-index:99}
+.card{width:360px;height:500px;border-radius:25px;background:linear-gradient(145deg,#d4af37,#6b4f08);border:5px solid #ffe27a;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 0 90px gold}
+.photo{width:170px;height:170px;border-radius:50%;background:#222;border:4px solid white;display:flex;align-items:center;justify-content:center;font-size:60px;margin-bottom:25px;overflow:hidden}
+.photo img{width:100%;height:100%;object-fit:cover}
+.name{font-size:34px;font-weight:bold;text-align:center}
+.className{font-size:18px;margin-top:10px;color:#fff3b0}
+.stars{font-size:28px;margin-top:15px}
+.rank{font-size:20px;margin-top:15px}
+.revealAnim{animation:reveal 1.5s ease}
+@keyframes reveal{0%{transform:scale(.1) rotateY(180deg);opacity:0;filter:blur(20px)}55%{transform:scale(1.2);opacity:1}100%{transform:scale(1);filter:blur(0)}}
+</style>
+</head>
+<body>
 
+<div class="logo">SCHOOLED DRAFT</div>
+<div class="board" id="board"></div>
+
+<div class="revealOverlay" id="revealOverlay">
+  <div class="card" id="card">
+    <div class="photo" id="photo">📷</div>
+    <div class="name" id="name">Student Name</div>
+    <div class="className" id="className">English</div>
+    <div class="stars" id="stars">☆☆☆☆☆</div>
+    <div class="rank" id="rank">Rank #1</div>
+  </div>
+</div>
+
+<script>
+const DB = "https://draft-ac851-default-rtdb.firebaseio.com/draft.json";
+
+const students = Array.from({length:30}, (_,i)=>({
+  name:`Student ${i+1}`,
+  photo:"",
+  className:"English",
+  stars: i < 6 ? 1 : i < 12 ? 2 : i < 18 ? 3 : i < 24 ? 4 : 5
+}));
+
+function getStars(n){return "⭐".repeat(n)+"☆".repeat(5-n)}
+function getClassStudents(c){return students.filter(s=>s.className===c).sort((a,b)=>a.stars-b.stars)}
+
+function drawBoard(state){
+  const list=getClassStudents(state.className);
+  const board=document.getElementById("board");
+  board.innerHTML="";
+  list.forEach((s,i)=>{
+    const revealed=i<state.revealedCount;
+    board.innerHTML+=`
+      <div class="player ${revealed?"":"locked"}">
+        <div class="rankNum">#${i+1}</div>
+        <div class="miniPhoto">${revealed?(s.photo?`<img src="${s.photo}">`:"📷"):"?"}</div>
+        <div class="miniName">${revealed?s.name:"Unrevealed"}</div>
+        <div class="miniStars">${revealed?getStars(s.stars):"☆☆☆☆☆"}</div>
+      </div>`;
+  });
+}
+
+async function saveState(state){
+  await fetch(DB,{method:"PUT",body:JSON.stringify(state)});
+}
+
+async function revealNext(state){
+  const list=getClassStudents(state.className);
+  const index=state.revealedCount;
+  if(index>=list.length)return drawBoard(state);
+
+  const s=list[index];
+
+  document.getElementById("name").textContent=s.name;
+  document.getElementById("className").textContent=s.className;
+  document.getElementById("stars").textContent=getStars(s.stars);
+  document.getElementById("rank").textContent="Rank #"+(index+1);
+  document.getElementById("photo").innerHTML=s.photo?`<img src="${s.photo}">`:"📷";
+
+  const overlay=document.getElementById("revealOverlay");
+  const card=document.getElementById("card");
+
+  overlay.style.display="flex";
+  card.classList.remove("revealAnim");
+  void card.offsetWidth;
+  card.classList.add("revealAnim");
+
+  setTimeout(async()=>{
+    state.revealedCount++;
+    state.action="board";
+    await saveState(state);
+    overlay.style.display="none";
+    drawBoard(state);
+  },3200);
+}
+
+let lastCommandId=0;
+
+async function checkFirebase(){
+  const res=await fetch(DB);
+  let state=await res.json();
+
+  if(!state){
+    state={className:"English",revealedCount:0,action:"board",commandId:0};
+    await saveState(state);
+  }
+
+  if(state.action==="next" && state.commandId!==lastCommandId){
+    lastCommandId=state.commandId;
+    revealNext(state);
+  }else if(state.action==="board"){
+    document.getElementById("revealOverlay").style.display="none";
+    drawBoard(state);
+  }
+}
+
+setInterval(checkFirebase,700);
+checkFirebase();
+</script>
+
+</body>
+</html>
